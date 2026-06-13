@@ -253,28 +253,65 @@
 
   <!-- Usage Guide -->
   <div class="card" style="margin-bottom:24px">
-    <div class="card-label">사용 방법</div>
-    <div style="display:flex; flex-direction:column; gap:12px; font-size:0.88rem; color:#8aaaca; line-height:1.7">
-      <div style="display:flex; gap:14px; align-items:flex-start">
-        <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">1</span>
-        <span>게임에서 에코 인벤토리를 열고 부옵션을 확인할 에코를 선택합니다.<br><span style="color:#4a6278; font-size:0.8rem">에코 상세 패널이 화면 우측에 표시된 상태여야 합니다.</span></span>
+    <div style="display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap;">
+
+      <!-- 사용 방법 -->
+      <div style="flex:1; min-width:260px;">
+        <div class="card-label">사용 방법</div>
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:0.88rem; color:#8aaaca; line-height:1.7">
+          <div style="display:flex; gap:14px; align-items:flex-start">
+            <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">1</span>
+            <span>게임에서 에코 인벤토리를 열고 부옵션을 확인할 에코를 선택합니다.<br><span style="color:#4a6278; font-size:0.8rem">에코 상세 패널이 화면 우측에 표시된 상태여야 합니다.</span></span>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start">
+            <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">2</span>
+            <span><b style="color:#a0b8d8">전체화면 스크린샷</b>을 찍습니다.<br><span style="color:#4a6278; font-size:0.8rem">Windows: <code style="background:rgba(20,35,70,0.8); padding:1px 6px; border-radius:4px; font-size:0.78rem">Win + PrtSc</code> 또는 <code style="background:rgba(20,35,70,0.8); padding:1px 6px; border-radius:4px; font-size:0.78rem">PrtSc</code> · 16:9 해상도 권장 (1920×1080 등)</span></span>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start">
+            <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">3</span>
+            <span>아래 업로드 영역에 스크린샷을 <b style="color:#a0b8d8">드래그&드롭</b>하거나 클릭해서 파일을 선택합니다.<br><span style="color:#4a6278; font-size:0.8rem">한 번에 최대 5개까지 업로드해 동시에 처리할 수 있습니다.</span></span>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start">
+            <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">4</span>
+            <span><b style="color:#a0b8d8">분석 시작</b> 버튼을 누릅니다.<br><span style="color:#4a6278; font-size:0.8rem">첫 실행 시 한국어 OCR 데이터(~5MB)를 다운로드하므로 잠시 기다려 주세요.</span></span>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start">
+            <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">5</span>
+            <span>추출된 부옵션을 확인하고 <b style="color:#a0b8d8">📋 복사</b> 버튼으로 클립보드에 복사합니다.<br><span style="color:#4a6278; font-size:0.8rem">스탯명·수치를 클릭하면 직접 수정할 수 있습니다. 인식이 어긋난 경우 수정 후 복사하세요.</span></span>
+          </div>
+        </div>
       </div>
-      <div style="display:flex; gap:14px; align-items:flex-start">
-        <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">2</span>
-        <span><b style="color:#a0b8d8">전체화면 스크린샷</b>을 찍습니다.<br><span style="color:#4a6278; font-size:0.8rem">Windows: <code style="background:rgba(20,35,70,0.8); padding:1px 6px; border-radius:4px; font-size:0.78rem">Win + PrtSc</code> 또는 <code style="background:rgba(20,35,70,0.8); padding:1px 6px; border-radius:4px; font-size:0.78rem">PrtSc</code> · 16:9 해상도 권장 (1920×1080 등)</span></span>
+
+      <!-- 구분선 -->
+      <div style="width:1px; background:rgba(90,130,210,0.15); align-self:stretch; flex-shrink:0;"></div>
+
+      <!-- 주의사항 -->
+      <div style="flex:1; min-width:260px;">
+        <div class="card-label" style="color:#c07040;">주의사항</div>
+        <div style="display:flex; flex-direction:column; gap:11px; font-size:0.85rem; color:#8aaaca; line-height:1.65">
+          <div style="display:flex; gap:10px; align-items:flex-start">
+            <span style="color:#e08040; flex-shrink:0; margin-top:2px">⚠</span>
+            <span><b style="color:#c8a070">HP 옵션 인식 주의</b><br><span style="color:#4a6278; font-size:0.8rem">HP는 OCR 오인식이 잦습니다. 결과를 반드시 직접 확인하세요.</span></span>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start">
+            <span style="color:#e08040; flex-shrink:0; margin-top:2px">⚠</span>
+            <span><b style="color:#c8a070">덩치 큰 에코 인식 불량</b><br><span style="color:#4a6278; font-size:0.8rem">에코 이미지가 큰 경우 부옵션 텍스트와 겹쳐 인식률이 낮아질 수 있습니다.</span></span>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start">
+            <span style="color:#7eb8f7; flex-shrink:0; margin-top:2px">ℹ</span>
+            <span><b style="color:#a0b8d8">전처리 이미지로 확인</b><br><span style="color:#4a6278; font-size:0.8rem">복사 버튼 옆 <b style="color:#7090a8">전처리 이미지</b>를 클릭하면 OCR이 실제로 스캔한 영역을 확인할 수 있습니다.</span></span>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start">
+            <span style="color:#7eb8f7; flex-shrink:0; margin-top:2px">ℹ</span>
+            <span><b style="color:#a0b8d8">수동 수정 가능</b><br><span style="color:#4a6278; font-size:0.8rem">스탯명·수치를 클릭하면 직접 입력·변경할 수 있습니다.</span></span>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start">
+            <span style="color:#e08040; flex-shrink:0; margin-top:2px">⚠</span>
+            <span><b style="color:#c8a070">% 수치 입력 시 % 필수</b><br><span style="color:#4a6278; font-size:0.8rem">수치를 수동으로 입력할 때 퍼센트 스탯은 반드시 <code style="background:rgba(20,35,70,0.8); padding:1px 5px; border-radius:3px">11.6%</code> 형식으로 % 기호를 포함해야 합니다.</span></span>
+          </div>
+        </div>
       </div>
-      <div style="display:flex; gap:14px; align-items:flex-start">
-        <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">3</span>
-        <span>아래 업로드 영역에 스크린샷을 <b style="color:#a0b8d8">드래그&드롭</b>하거나 클릭해서 파일을 선택합니다.<br><span style="color:#4a6278; font-size:0.8rem">한 번에 최대 5개까지 업로드해 동시에 처리할 수 있습니다.</span></span>
-      </div>
-      <div style="display:flex; gap:14px; align-items:flex-start">
-        <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">4</span>
-        <span><b style="color:#a0b8d8">분석 시작</b> 버튼을 누릅니다.<br><span style="color:#4a6278; font-size:0.8rem">첫 실행 시 한국어 OCR 데이터(~5MB)를 다운로드하므로 잠시 기다려 주세요.</span></span>
-      </div>
-      <div style="display:flex; gap:14px; align-items:flex-start">
-        <span style="min-width:24px; height:24px; border-radius:50%; background:rgba(30,50,100,0.8); border:1px solid rgba(126,184,247,0.3); color:#7eb8f7; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px">5</span>
-        <span>추출된 부옵션을 확인하고 <b style="color:#a0b8d8">📋 복사</b> 버튼으로 클립보드에 복사합니다.<br><span style="color:#4a6278; font-size:0.8rem">스탯명·수치를 클릭하면 직접 수정할 수 있습니다. 인식이 어긋난 경우 수정 후 복사하세요.</span></span>
-      </div>
+
     </div>
   </div>
 
@@ -327,6 +364,20 @@
       • <span style="display:inline-block;width:7px;height:7px;background:#f0a050;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>주황 점: 스탯명 OCR 보정 &nbsp;
       • <span style="display:inline-block;width:7px;height:7px;background:#50c8f0;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>파란 점: 수치 유효값 스냅 (마우스 오버 시 원본 확인)
     </p>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center; padding:20px 0 10px; border-top:1px solid rgba(90,130,210,0.1); margin-top:8px;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSesfxbQMT4CwNB9s4Bw4o9MafrLKzXekwK6rKqi04AUAXrrwA/viewform?usp=publish-editor"
+       target="_blank"
+       style="display:inline-flex; align-items:center; gap:8px; padding:10px 22px;
+              background:rgba(25,38,72,0.7); border:1px solid rgba(90,130,210,0.25);
+              border-radius:10px; color:#7090b8; font-size:0.85rem; font-weight:600;
+              text-decoration:none; transition:all 0.2s;"
+       onmouseover="this.style.background='rgba(38,55,100,0.85)'; this.style.color='#a0b8d8';"
+       onmouseout="this.style.background='rgba(25,38,72,0.7)'; this.style.color='#7090b8';">
+      🐛 버그 제보 · 기능 건의
+    </a>
   </div>
 
 </div>
