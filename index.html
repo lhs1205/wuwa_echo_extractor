@@ -877,11 +877,32 @@ function copyTable(bodyId, feedbackId) {
 
 function copyAll() {
   const allBodies = document.querySelectorAll('[id^="sb-"]');
-  const parts = [];
+  const echoData = [];
   allBodies.forEach(tb => {
-    parts.push(getTableText(tb.id));
+    const rows = tb.querySelectorAll('tr');
+    const stats = [];
+    rows.forEach(tr => {
+      const cells = tr.querySelectorAll('td');
+      const statName = cells[0].dataset.value || cells[0].textContent.replace(/\s+/g,' ').trim();
+      const val = cells[1].dataset.value || cells[1].textContent.trim();
+      stats.push({ statName, val });
+    });
+    echoData.push(stats);
   });
-  navigator.clipboard.writeText(parts.join('\n\n')).then(() => {
+
+  // 에코별 5행을 가로로 나열: [에코1 스탯\t수치] [에코2 스탯\t수치] ...
+  let text = '';
+  for (let i = 0; i < 5; i++) {
+    const rowParts = echoData.map(stats => {
+      const s = stats[i] || { statName: '', val: '' };
+      return (s.statName && s.statName !== '미감지')
+        ? `${s.statName}\t${s.val}`
+        : '\t';
+    });
+    text += rowParts.join('\t\t') + '\n';
+  }
+
+  navigator.clipboard.writeText(text.trim()).then(() => {
     const fb = document.getElementById('globalCopyFeedback');
     if (fb) { fb.classList.add('show'); setTimeout(() => fb.classList.remove('show'), 2000); }
   });
