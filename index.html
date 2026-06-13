@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>명조 에코 스탯 추출기</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #080c18;
+      color: #c0d0ee;
+      font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 40%, rgba(25,55,120,0.28) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 15%, rgba(55,20,90,0.22) 0%, transparent 50%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; position: relative; z-index: 1; }
+
+    /* ── Header ── */
+    .header { text-align: center; margin-bottom: 36px; }
+    .header h1 {
+      font-size: 1.9rem; font-weight: 700; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #7eb8f7, #b89af5, #7ee8f7);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header p { margin-top: 8px; color: #566580; font-size: 0.88rem; }
+
+    /* ── Card ── */
+    .card {
+      background: rgba(12, 18, 38, 0.88);
+      border: 1px solid rgba(90,130,210,0.18);
+      border-radius: 16px; padding: 26px;
+      margin-bottom: 18px;
+      backdrop-filter: blur(8px);
+    }
+    .card-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 1.8px;
+      text-transform: uppercase; color: #4a6898; margin-bottom: 14px;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 2px dashed rgba(90,130,210,0.3);
+      border-radius: 12px; padding: 44px 20px;
+      text-align: center; cursor: pointer;
+      transition: all 0.2s; position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: rgba(126,184,247,0.55);
+      background: rgba(30,50,100,0.18);
+    }
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-icon { font-size: 2.6rem; display: block; margin-bottom: 12px; }
+    .upload-zone h3 { font-size: 1rem; color: #8aaaca; margin-bottom: 6px; }
+    .upload-zone p { font-size: 0.8rem; color: #445570; }
+
+    /* ── Thumbnail strip ── */
+    .thumb-strip {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .thumb-item {
+      position: relative; width: 140px; height: 80px;
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid rgba(90,130,210,0.25);
+      background: #0a0e1e;
+      flex-shrink: 0;
+    }
+    .thumb-item img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .thumb-badge {
+      position: absolute; top: 4px; left: 4px;
+      background: rgba(10,18,40,0.82);
+      border: 1px solid rgba(126,184,247,0.35);
+      border-radius: 4px; padding: 1px 7px;
+      font-size: 0.7rem; font-weight: 700; color: #7eb8f7;
+    }
+    .thumb-status {
+      position: absolute; bottom: 4px; right: 4px;
+      font-size: 0.72rem; color: #70e0a0;
+      background: rgba(10,18,40,0.75); border-radius: 4px; padding: 1px 5px;
+    }
+    .thumb-status.processing { color: #a080f0; }
+    .thumb-status.error { color: #f08070; }
+
+    .preview-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+    .file-count-hint { font-size: 0.78rem; color: #4a6278; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 11px 22px; border-radius: 10px; border: none;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.3px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #1c3e7a, #352060);
+      border: 1px solid rgba(126,184,247,0.3); color: #b0d0f8;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #274fa0, #4a2e88);
+      box-shadow: 0 0 18px rgba(126,184,247,0.18);
+    }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-secondary {
+      background: rgba(25,38,72,0.7); border: 1px solid rgba(90,130,210,0.22);
+      color: #7090b8;
+    }
+    .btn-secondary:hover { background: rgba(38,55,100,0.8); color: #96b0d8; }
+    .btn-sm { padding: 7px 14px; font-size: 0.8rem; }
+
+    /* ── Progress ── */
+    .progress-card { text-align: center; }
+    .progress-bar-wrap {
+      background: rgba(20,32,65,0.8); border-radius: 999px;
+      height: 6px; overflow: hidden; margin: 0 auto 14px; max-width: 400px;
+    }
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #4a90e0, #a060e8);
+      transition: width 0.3s; border-radius: 999px;
+    }
+    .progress-text { font-size: 0.85rem; color: #607090; }
+
+    /* ── Results grid ── */
+    .results-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+    }
+    .results-header .card-label { margin-bottom: 0; }
+
+    .result-card {
+      margin-bottom: 16px;
+    }
+    .result-card-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .echo-index-badge {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
+      background: rgba(30,50,100,0.7);
+      border: 1px solid rgba(90,130,210,0.3);
+      border-radius: 6px; padding: 3px 10px; color: #7eb8f7;
+    }
+    .result-thumb {
+      width: 56px; height: 32px; object-fit: cover;
+      border-radius: 4px; border: 1px solid rgba(90,130,210,0.2);
+      opacity: 0.8;
+    }
+
+    /* ── Stats table ── */
+    .stats-table { width: 100%; border-collapse: collapse; }
+    .stats-table th {
+      font-size: 0.68rem; letter-spacing: 1.4px; text-transform: uppercase;
+      color: #3e5878; padding: 8px 14px; text-align: left;
+      border-bottom: 1px solid rgba(90,130,210,0.12);
+    }
+    .stats-table td { padding: 10px 14px; border-bottom: 1px solid rgba(90,130,210,0.07); }
+    .stats-table tr:last-child td { border-bottom: none; }
+    .stats-table tr:hover td { background: rgba(35,55,100,0.12); }
+
+    /* Editable cell */
+    .editable-cell { cursor: pointer; }
+    .editable-cell:hover { color: #e0eeff; }
+    .stat-name-select, .stat-val-input {
+      background: rgba(10,18,40,0.9); border: 1px solid rgba(126,184,247,0.4);
+      border-radius: 6px; color: #c8dcf8; font-size: 0.88rem;
+      padding: 4px 8px; outline: none; font-family: inherit;
+    }
+    .stat-name-select { min-width: 180px; }
+    .stat-val-input { width: 90px; }
+
+    .val-cell {
+      font-family: 'Consolas', monospace; font-weight: 600;
+      color: #70e0a0; font-size: 0.9rem;
+    }
+
+    /* Correction indicators */
+    .corrected-dot {
+      display: inline-block; width: 7px; height: 7px;
+      background: #f0a050; border-radius: 50%; margin-left: 6px;
+      cursor: help; vertical-align: middle;
+    }
+    .value-snapped-dot {
+      display: inline-block; width: 7px; height: 7px;
+      background: #50c8f0; border-radius: 50%; margin-left: 6px;
+      cursor: help; vertical-align: middle;
+    }
+
+    /* Result actions */
+    .result-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+
+    /* OCR debug */
+    .debug-toggle {
+      font-size: 0.75rem; color: #3e5878; cursor: pointer;
+      text-decoration: underline; background: none; border: none; padding: 0;
+    }
+    .debug-pre {
+      display: none; margin-top: 12px;
+      background: rgba(5,10,22,0.9); border: 1px solid rgba(90,130,210,0.12);
+      border-radius: 8px; padding: 14px; font-family: 'Consolas', monospace;
+      font-size: 0.75rem; color: #4e6888; white-space: pre-wrap; word-break: break-all;
+      max-height: 220px; overflow-y: auto;
+    }
+    .debug-img { display: none; margin-top: 10px; }
+    .debug-img p { font-size: 0.75rem; color: #4a6898; margin-bottom: 6px; }
+    .debug-img img { max-width: 100%; border-radius: 8px; border: 1px solid rgba(90,130,210,0.15); }
+
+    /* Copy feedback */
+    .copy-feedback {
+      font-size: 0.78rem; color: #70e0a0; align-self: center;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .copy-feedback.show { opacity: 1; }
+
+    /* Global copy bar */
+    .global-copy-bar {
+      display: flex; gap: 10px; align-items: center;
+      padding: 14px 0 0; border-top: 1px solid rgba(90,130,210,0.1); margin-top: 4px;
+    }
+
+    /* Notice */
+    .notice {
+      font-size: 0.78rem; color: #4a6278; margin-top: 12px; line-height: 1.6;
+    }
+    .notice b { color: #6888a8; }
+
+    /* Divider between cards */
+    .result-divider {
+      border: none; border-top: 1px solid rgba(90,130,210,0.1);
+      margin: 16px 0 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>명조 에코 스탯 추출기</h1>
+    <p>게임 전체화면 스크린샷에서 에코 부옵션을 무료로 자동 추출합니다 · 최대 5개 동시 처리</p>
+  </div>
+
+  <!-- Upload Section -->
+  <div class="card" id="uploadCard">
+    <div class="card-label">스크린샷 업로드</div>
+    <div class="upload-zone" id="uploadZone"
+         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+      <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFileSelect(event)">
+      <span class="upload-icon">🖼️</span>
+      <h3>클릭하거나 이미지를 여기에 드롭하세요</h3>
+      <p>PC 전체화면 스크린샷 · PNG / JPG · 16:9 · 최대 5개</p>
+    </div>
+
+    <div id="previewWrap" style="display:none">
+      <div class="thumb-strip" id="thumbStrip"></div>
+      <div class="preview-actions" style="margin-top:14px">
+        <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">분석 시작</button>
+        <button class="btn btn-secondary" onclick="resetAll()">다시 선택</button>
+        <span class="file-count-hint" id="fileCountHint"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="card progress-card" id="progressCard" style="display:none">
+    <div class="progress-bar-wrap"><div class="progress-fill" id="progressFill"></div></div>
+    <p class="progress-text" id="progressText">초기화 중...</p>
+  </div>
+
+  <!-- Results -->
+  <div class="card" id="resultsCard" style="display:none">
+    <div class="results-header">
+      <span class="card-label" id="resultsCardLabel">부옵션 추출 결과</span>
+      <button class="btn btn-secondary btn-sm" onclick="resetAll()">새 에코 분석</button>
+    </div>
+
+    <!-- Dynamic result cards go here -->
+    <div id="resultCardsContainer"></div>
+
+    <!-- Global copy all button (shown only for multiple echoes) -->
+    <div class="global-copy-bar" id="globalCopyBar" style="display:none">
+      <button class="btn btn-primary btn-sm" onclick="copyAll()">📋 전체 복사</button>
+      <span class="copy-feedback" id="globalCopyFeedback">복사됨!</span>
+      <span style="font-size:0.75rem;color:#3e5878">에코 구분은 빈 줄로 분리됩니다</span>
+    </div>
+
+    <p class="notice" style="margin-top:14px">
+      • 스탯명·수치를 <b>클릭</b>하면 직접 수정할 수 있습니다.<br>
+      • <span style="display:inline-block;width:7px;height:7px;background:#f0a050;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>주황 점: 스탯명 OCR 보정 &nbsp;
+      • <span style="display:inline-block;width:7px;height:7px;background:#50c8f0;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>파란 점: 수치 유효값 스냅 (마우스 오버 시 원본 확인)
+    </p>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  데이터 상수
+// ═══════════════════════════════════════════
+const MAIN_STATS_BY_COST = {
+  4: ['크리티컬', '크리티컬 피해', '공격력%', 'HP%', '방어력%', '치유 효과 보너스'],
+  3: ['속성 피해 보너스', '공격력%', 'HP%', '방어력%', '공명 효율'],
+  1: ['공격력%', 'HP%', '방어력%']
+};
+
+const SUB_STAT_NAMES = [
+  '공격력','공격력%','HP','HP%','방어력','방어력%',
+  '크리티컬','크리티컬 피해','공명 효율',
+  '일반 공격 피해','강공격 피해',
+  '공명 스킬 피해','공명 해방 피해',
+  '치유 효과 보너스'
+];
+
+const OCR_CANDIDATES = [
+  '공격력','HP','방어력',
+  '크리티컬','크리티컬 피해','공명 효율',
+  '일반 공격 피해','강공격 피해',
+  '공명 스킬 피해','공명 해방 피해',
+  '치유 효과 보너스',
+  '일반 공격 피해 보너스','강공격 피해 보너스',
+  '공명 스킬 피해 보너스','공명 해방 피해 보너스',
+  '응결 피해 보너스','용융 피해 보너스','전도 피해 보너스',
+  '기류 피해 보너스','회절 피해 보너스','인멸 피해 보너스',
+  '속성 피해 보너스',
+  '크리티컬 피해','공격력%','HP%','방어력%','공명 효율','치유 효과 보너스'
+];
+
+const ALIAS_MAP = {
+  '일반 공격 피해 보너스': '일반 공격 피해',
+  '강공격 피해 보너스':    '강공격 피해',
+  '공명 스킬 피해 보너스': '공명 스킬 피해',
+  '공명 해방 피해 보너스': '공명 해방 피해',
+  '응결 피해 보너스': '속성 피해 보너스',
+  '용융 피해 보너스': '속성 피해 보너스',
+  '전도 피해 보너스': '속성 피해 보너스',
+  '기류 피해 보너스': '속성 피해 보너스',
+  '회절 피해 보너스': '속성 피해 보너스',
+  '인멸 피해 보너스': '속성 피해 보너스',
+};
+
+const AMBIGUOUS = new Set(['공격력','HP','방어력']);
+
+// OCR이 영문을 숫자로 오인식하는 케이스 (H→1, P→0/8)
+// e.g. "HP" → "10" 또는 "18"
+const DIGIT_OCR_ALIAS = {
+  '10': 'HP',
+  '18': 'HP',
+};
+
+// 등급별 유효 수치 (1등급 최고 ~ 8등급 최저)
+// displayName 기준 (ALIAS_MAP + % 구분 적용 후 이름)
+// 이 목록에 있는 스탯은 OCR 결과를 nearest-valid로 자동 스냅
+const STAT_VALID_VALUES = {
+  // ── flat ──
+  'HP':    [320, 360, 390, 430, 470, 510, 540, 580],
+  '방어력': [40, 50, 60, 70],
+  '공격력': [30, 40, 50, 60],
+  // ── percent (float, % 기호 제외 비교) ──
+  'HP%':    [6.4, 7.1, 7.9, 8.6, 9.4, 10.1, 10.9, 11.6],
+  '방어력%': [8.1, 9.0, 10.0, 10.9, 11.8, 12.8, 13.8, 14.7],
+  '공격력%': [6.4, 7.1, 7.9, 8.6, 9.4, 10.1, 10.9, 11.6],
+  '공명 효율':      [6.8, 7.6, 8.4, 9.2, 10.0, 10.8, 11.6, 12.4],
+  '강공격 피해':    [6.4, 7.1, 7.9, 8.6, 9.4, 10.1, 10.9, 11.6],
+  '일반 공격 피해': [6.4, 7.1, 7.9, 8.6, 9.4, 10.1, 10.9, 11.6],
+  '공명 스킬 피해': [6.4, 7.1, 7.9, 8.6, 9.4, 10.1, 10.9, 11.6],
+  '공명 해방 피해': [6.4, 7.1, 7.9, 8.6, 9.4, 10.1, 10.9, 11.6],
+  '속성 피해 보너스': [6.4, 7.1, 7.9, 8.6, 9.4, 10.1, 10.9, 11.6],
+  '크리티컬':      [6.3, 6.9, 7.5, 8.1, 8.7, 9.3, 9.9, 10.5],
+  '크리티컬 피해': [12.6, 13.8, 15.0, 16.2, 17.4, 18.6, 19.8, 21.0],
+  // 치유 효과 보너스: 데이터 미확인, 스냅 미적용
+};
+
+// ═══════════════════════════════════════════
+//  레벤슈타인 거리
+// ═══════════════════════════════════════════
+function lev(a, b) {
+  const m = a.length, n = b.length;
+  const d = Array.from({length: m+1}, (_,i) =>
+    Array.from({length: n+1}, (_,j) => i===0 ? j : j===0 ? i : 0)
+  );
+  for (let i=1;i<=m;i++)
+    for (let j=1;j<=n;j++)
+      d[i][j] = a[i-1]===b[j-1] ? d[i-1][j-1]
+               : 1 + Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]);
+  return d[m][n];
+}
+
+function fuzzyMatch(raw) {
+  const noSpace = s => s.replace(/\s/g, '');
+  const cleaned = raw.replace(/[^가-힣a-zA-Z0-9\s]/g, '').trim();
+  const noSpaceCleaned = noSpace(cleaned);
+
+  // OCR이 "HP"를 숫자(10, 18 등)로 오인식한 경우 직접 매핑
+  if (/^\d+$/.test(noSpaceCleaned) && DIGIT_OCR_ALIAS[noSpaceCleaned]) {
+    const canonical = ALIAS_MAP[DIGIT_OCR_ALIAS[noSpaceCleaned]] || DIGIT_OCR_ALIAS[noSpaceCleaned];
+    return { canonical, distance: 1, input: cleaned };
+  }
+
+  const cleanedNS = noSpaceCleaned.replace(/^\d+/, '').replace(/\d+$/, '');
+  if (cleanedNS.length < 2) return null;
+
+  // 크로스 스크립트 페널티: 한국어 입력이 HP/HP% 같은 ASCII 후보에 오매칭되는 것을 방지
+  // 예) "방억" vs "HP" — 레벤슈타인 거리 2로 같아서 HP가 먼저 선택되는 문제 수정
+  const hasKorean   = s => /[가-힣]/.test(s);
+  const isAsciiOnly = s => /^[a-zA-Z%]+$/.test(s);
+
+  let best = null, bestDist = Infinity;
+  for (const c of OCR_CANDIDATES) {
+    let dist = lev(cleanedNS, noSpace(c));
+    if (hasKorean(cleanedNS) && isAsciiOnly(noSpace(c))) {
+      dist += Math.ceil(noSpace(c).length * 0.5); // ASCII 후보 페널티
+    }
+    const threshold = Math.max(2, Math.floor(noSpace(c).length * 0.38));
+    if (dist < bestDist && dist <= threshold) { best = c; bestDist = dist; }
+  }
+  if (!best) return null;
+  const canonical = ALIAS_MAP[best] || best;
+  return { canonical, distance: bestDist, input: cleaned };
+}
+
+function canonicalize(statName, hasPercent) {
+  if (AMBIGUOUS.has(statName) && hasPercent) return statName + '%';
+  return statName;
+}
+
+// OCR이 소수점을 드랍한 경우 복원: "86%" → "8.6%", "126%" → "12.6%"
+// % 수치이고, 정수이며, >= 10인 경우 → 마지막 자리 앞에 소수점 삽입
+function fixMissingDecimal(numStr, hasPct) {
+  if (!hasPct) return numStr;
+  if (numStr.includes('.')) return numStr;
+  const n = parseFloat(numStr);
+  if (isNaN(n) || n < 10) return numStr;
+  return numStr.slice(0, -1) + '.' + numStr.slice(-1);
+}
+
+// displayName 기준으로 STAT_VALID_VALUES에서 nearest-valid snap
+// flat/% 모두 처리, 이미 유효한 값이면 그대로 반환
+function snapStatValue(displayName, value) {
+  const validValues = STAT_VALID_VALUES[displayName];
+  if (!validValues) return { value, snapped: false };
+
+  const isPercent = value.endsWith('%');
+  const num = parseFloat(value);
+  if (isNaN(num)) return { value, snapped: false };
+
+  // 이미 유효값이면 스냅 불필요 (부동소수점 허용 오차 0.05)
+  if (validValues.some(v => Math.abs(v - num) < 0.05)) return { value, snapped: false };
+
+  // OCR 0→9 오인식 교정: 각 '0'을 하나씩 '9'로 치환했을 때 정확히 유효값이면 사용
+  // 예: "7.0%" → "7.9%" (9→0 오인식) — 단, 치환 결과가 유효값일 때만 적용해 오탐 방지
+  // "10.0%" → "10.9%", 단 "40"(방어력 flat, 유효값) 같은 경우는 위 체크에서 이미 통과
+  {
+    const numericStr = isPercent ? value.slice(0, -1) : value;
+    for (let i = 0; i < numericStr.length; i++) {
+      if (numericStr[i] === '0') {
+        const candidate = numericStr.slice(0, i) + '9' + numericStr.slice(i + 1);
+        const candidateNum = parseFloat(candidate);
+        if (!isNaN(candidateNum) && validValues.some(v => Math.abs(v - candidateNum) < 0.05)) {
+          const corrected = candidate + (isPercent ? '%' : '');
+          return { value: corrected, snapped: true, originalValue: value };
+        }
+      }
+    }
+  }
+
+  // nearest 유효값
+  let nearest = validValues[0];
+  let minDist = Math.abs(num - nearest);
+  for (const v of validValues) {
+    const dist = Math.abs(num - v);
+    if (dist < minDist) { minDist = dist; nearest = v; }
+  }
+
+  // % 수치는 소수점 1자리 표기
+  const newValue = isPercent
+    ? (Number.isInteger(nearest) ? nearest + '.0%' : nearest + '%')
+    : String(nearest);
+
+  if (newValue === value) return { value, snapped: false };
+  return { value: newValue, snapped: true, originalValue: value };
+}
+
+// ═══════════════════════════════════════════
+//  이미지 전처리
+// ═══════════════════════════════════════════
+function getCropRect(imgEl) {
+  // x: 73%~100%, y: 28%~45%
+  // x 좌측 노이즈 제거, y 상단 여유, 하단은 에코 어빌리티 문구 제외
+  const W = imgEl.naturalWidth, H = imgEl.naturalHeight;
+  const x = Math.floor(W * 0.73);
+  const y = Math.floor(H * 0.28);
+  const w = W - x;
+  const h = Math.floor(H * 0.17);
+  return { x, y, w, h };
+}
+
+function prepareOCRCanvas(imgEl) {
+  const { x, y, w, h } = getCropRect(imgEl);
+  const scale = 2;
+  const c = document.createElement('canvas');
+  c.width = w * scale; c.height = h * scale;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(imgEl, x, y, w, h, 0, 0, c.width, c.height);
+  const CW = c.width, CH = c.height;
+
+  // ── 1단계: Laplacian 샤프닝 ──
+  // kernel: center×5, 상하좌우×-1 → 획 경계 강조, 얇은 문자(1 등) 구분력 향상
+  {
+    const id = ctx.getImageData(0, 0, CW, CH);
+    const src = new Uint8ClampedArray(id.data);
+    const d = id.data;
+    for (let py = 1; py < CH - 1; py++) {
+      for (let px = 1; px < CW - 1; px++) {
+        const i = (py * CW + px) * 4;
+        for (let ch = 0; ch < 3; ch++) {
+          d[i+ch] = Math.max(0, Math.min(255,
+            5 * src[i+ch]
+            - src[i+ch - CW*4]
+            - src[i+ch + CW*4]
+            - src[i+ch - 4]
+            - src[i+ch + 4]
+          ));
+        }
+      }
+    }
+    ctx.putImageData(id, 0, 0);
+  }
+
+  // ── 2단계: 노란 박스 억제 + Otsu 적응형 이진화 ──
+  // Otsu: 이미지 히스토그램에서 클래스 간 분산을 최대화하는 임계값 자동 계산
+  // 고정 120 대신 각 이미지 밝기 분포에 맞게 적응 → 얇은 획도 놓치지 않음
+  {
+    const id = ctx.getImageData(0, 0, CW, CH);
+    const d = id.data;
+
+    // 노란 픽셀 제외한 휘도값으로 히스토그램 구성
+    const hist = new Array(256).fill(0);
+    let totalPx = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      if (!(r > 120 && b < 100 && (r - b) > 80)) {
+        hist[Math.round(0.299*r + 0.587*g + 0.114*b)]++;
+        totalPx++;
+      }
+    }
+
+    // Otsu 임계값 탐색
+    let sum = 0;
+    for (let i = 0; i < 256; i++) sum += i * hist[i];
+    let sumB = 0, wB = 0, maxVar = 0, otsu = 120;
+    for (let i = 0; i < 256; i++) {
+      wB += hist[i];
+      if (!wB) continue;
+      const wF = totalPx - wB;
+      if (!wF) break;
+      sumB += i * hist[i];
+      const mB = sumB / wB, mF = (sum - sumB) / wF;
+      const v = wB * wF * (mB - mF) ** 2;
+      if (v > maxVar) { maxVar = v; otsu = i; }
+    }
+
+    // 이진화 (노란 픽셀 → 흰색, 나머지는 Otsu 기준)
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const isYellow = r > 120 && b < 100 && (r - b) > 80;
+      const lum = 0.299*r + 0.587*g + 0.114*b;
+      const v = (!isYellow && lum >= otsu) ? 0 : 255;
+      d[i] = d[i+1] = d[i+2] = v;
+    }
+    ctx.putImageData(id, 0, 0);
+  }
+
+  // ── 3단계: dilation 2패스 — 박스 테두리 잔선 제거 ──
+  // 4패스는 "1" 같은 얇은 획을 지워버리므로 2패스로 제한
+  for (let pass = 0; pass < 2; pass++) {
+    const id2 = ctx.getImageData(0, 0, CW, CH);
+    const d2 = id2.data;
+    const snap = new Uint8Array(CW * CH);
+    for (let i = 0; i < snap.length; i++) snap[i] = d2[i * 4];
+    for (let y = 1; y < CH - 1; y++) {
+      for (let x = 1; x < CW - 1; x++) {
+        if (snap[y * CW + x] === 0) {
+          let whites = 0;
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++)
+              if ((dx || dy) && snap[(y+dy)*CW+(x+dx)] === 255) whites++;
+          if (whites >= 6) {
+            const base = (y * CW + x) * 4;
+            d2[base] = d2[base+1] = d2[base+2] = 255;
+          }
+        }
+      }
+    }
+    ctx.putImageData(id2, 0, 0);
+  }
+
+  return c;
+}
+
+// ═══════════════════════════════════════════
+//  OCR 파싱
+// ═══════════════════════════════════════════
+function parseOCR(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1);
+  const stats = [];
+
+  for (const line of lines) {
+    const raw = line.replace(/[^가-힣a-zA-Z0-9.\s%]/g, ' ').replace(/\s+/g, ' ').trim();
+    const cleaned = raw.replace(/([%\d])[.\s]*$/, '$1').trimEnd();
+
+    // 1차: 정수 또는 소수 패턴. [\d\s]*를 쓰면 "18 8.6"을 하나로 묶으므로
+    //      \d+(?:\s*\.\s*\d+)? 로 제한 — 공백 분리된 두 숫자 블록 묶기 방지
+    // 2차: OCR이 앞 숫자를 날린 경우 "?.4%" → ".4%"
+    const numMatch = cleaned.match(/(.+?)\s+(\d+(?:\s*\.\s*\d+)?)\s*(%?)\s*$/)
+                  || cleaned.match(/(.+?)\s+(\.\d[\d\s]*)\s*(%?)\s*$/);
+    if (!numMatch) continue;
+
+    const rawName = numMatch[1];
+    let numStr = numMatch[2].replace(/\s/g, '');
+    if (numStr.startsWith('.')) numStr = '0' + numStr; // ".4" → "0.4" (정규화)
+    numStr = fixMissingDecimal(numStr, numMatch[3] === '%');
+    const hasPct  = numMatch[3] === '%';
+
+    if (!numStr || isNaN(parseFloat(numStr))) continue;
+
+    // 이름 앞쪽 단독 숫자 토큰 제거: "1 10" → "10" (불릿/줄번호 노이즈)
+    const nameParts = rawName.trim().split(/\s+/);
+    while (nameParts.length > 1 && /^\d+$/.test(nameParts[0])) nameParts.shift();
+
+    // 숫자처럼 생긴 한글 오인식 복원: 이름 끝 "거" = OCR이 "11"을 한글로 오인식
+    // "공 명 효 율 거 .6%" → numStr="0.6" → "11.6", nameParts에서 "거" 제거
+    const DIGIT_LOOKALIKE_SUFFIX = { '거': '11' };
+    const lastTok = nameParts[nameParts.length - 1];
+    if (hasPct && DIGIT_LOOKALIKE_SUFFIX[lastTok] && numStr.startsWith('0.')) {
+      numStr = DIGIT_LOOKALIKE_SUFFIX[lastTok] + numStr.slice(1); // "0.6" → "11.6"
+      nameParts.pop();
+    }
+
+    const cleanedRawName = nameParts.join(' ');
+
+    const matched = fuzzyMatch(cleanedRawName);
+    if (!matched) continue;
+
+    const canonical   = matched.canonical;
+    const displayName = canonicalize(canonical, hasPct);
+    const rawValue    = numStr + (hasPct ? '%' : '');
+
+    const { value, snapped: valueSnapped, originalValue } = snapStatValue(displayName, rawValue);
+
+    stats.push({ canonical, displayName, value, rawLine: line, distance: matched.distance, ocrInput: matched.input, valueSnapped, originalValue });
+  }
+  return stats;
+}
+
+function classifyStats(parsed) {
+  const isBaseStatNoise = s => {
+    if (s.value.endsWith('%')) return false;
+    // 부옵션 flat 최대값: HP=580, 방어력=70, 공격력=60
+    // 1000 미만은 유효한 부옵션으로 간주 (기본 스탯은 HP 수천~수만, 공격력 수백~수천)
+    return parseFloat(s.value) > 1000;
+  };
+  const subStats = parsed.filter(s => !isBaseStatNoise(s)).slice(0, 5);
+  return { subStats };
+}
+
+// ═══════════════════════════════════════════
+//  UI 렌더링
+// ═══════════════════════════════════════════
+function escH(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderResultCard(index, total, subStats, thumbSrc, ocrText) {
+  const cardId = `rc-${index}`;
+  const bodyId = `sb-${index}`;
+  const debugPreId = `dp-${index}`;
+  const debugImgId = `di-${index}`;
+  const debugImgWrapId = `diw-${index}`;
+  const copyFbId = `cf-${index}`;
+
+  const card = document.createElement('div');
+  card.id = cardId;
+
+  // divider between cards (not before first)
+  if (index > 0) {
+    const hr = document.createElement('hr');
+    hr.className = 'result-divider';
+    card.appendChild(hr);
+  }
+
+  // header
+  const header = document.createElement('div');
+  header.className = 'result-card-header';
+  header.innerHTML = `
+    <span class="echo-index-badge">에코 ${index + 1} / ${total}</span>
+    <img class="result-thumb" src="${escH(thumbSrc)}" alt="에코 ${index+1}">
+  `;
+  card.appendChild(header);
+
+  // table
+  const table = document.createElement('table');
+  table.className = 'stats-table';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>스탯</th>
+        <th style="width:110px">수치</th>
+        <th style="width:20px"></th>
+      </tr>
+    </thead>
+    <tbody id="${bodyId}"></tbody>
+  `;
+  card.appendChild(table);
+
+  // actions
+  const actions = document.createElement('div');
+  actions.className = 'result-actions';
+  actions.innerHTML = `
+    <button class="btn btn-primary btn-sm" onclick="copyTable('${bodyId}','${copyFbId}')">📋 복사</button>
+    <button class="debug-toggle" onclick="toggleDebug('${debugPreId}','${debugImgWrapId}','text')">OCR 원문</button>
+    <button class="debug-toggle" onclick="toggleDebug('${debugPreId}','${debugImgWrapId}','img')">전처리 이미지</button>
+    <span class="copy-feedback" id="${copyFbId}">복사됨!</span>
+  `;
+  card.appendChild(actions);
+
+  const debugPre = document.createElement('pre');
+  debugPre.className = 'debug-pre';
+  debugPre.id = debugPreId;
+  card.appendChild(debugPre);
+
+  const debugImgWrap = document.createElement('div');
+  debugImgWrap.className = 'debug-img';
+  debugImgWrap.id = debugImgWrapId;
+  debugImgWrap.innerHTML = `
+    <p>Tesseract 입력 이미지</p>
+    <img id="${debugImgId}" alt="debug">
+  `;
+  card.appendChild(debugImgWrap);
+
+  document.getElementById('resultCardsContainer').appendChild(card);
+
+  // fill tbody
+  fillStatsBody(bodyId, subStats);
+
+  // debug
+  debugPre.textContent = '── OCR 원문 ──\n' + ocrText + '\n\n── 파싱된 스탯 ──\n' + JSON.stringify(parsed_cache[index] || [], null, 2);
+}
+
+function fillStatsBody(bodyId, subStats) {
+  const tbody = document.getElementById(bodyId);
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const s = subStats[i] || null;
+    const corrected    = s && s.distance > 0;
+    const valueSnapped = s && s.valueSnapped;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="editable-cell" onclick="editName(this)" data-value="${s ? escH(s.displayName) : ''}">
+        ${s ? escH(s.displayName) : '<span style="color:#3e5878">미감지</span>'}
+        ${corrected ? `<span class="corrected-dot" title="OCR 원문(스탯명): ${escH(s.ocrInput)}"></span>` : ''}
+      </td>
+      <td class="val-cell editable-cell" onclick="editVal(this)" data-value="${s ? escH(s.value) : ''}">
+        ${s ? escH(s.value) : '—'}
+        ${valueSnapped ? `<span class="value-snapped-dot" title="수치 보정: ${escH(s.originalValue)} → ${escH(s.value)}"></span>` : ''}
+      </td>
+      <td></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function editName(td) {
+  if (td.querySelector('select')) return;
+  const current = td.dataset.value || '';
+  const sel = document.createElement('select');
+  sel.className = 'stat-name-select';
+  SUB_STAT_NAMES.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    if (name === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (!SUB_STAT_NAMES.includes(current) && current) {
+    const opt = document.createElement('option');
+    opt.value = current; opt.textContent = current; opt.selected = true;
+    sel.prepend(opt);
+  }
+  sel.onblur = sel.onchange = () => {
+    td.dataset.value = sel.value;
+    td.innerHTML = escH(sel.value);
+  };
+  td.innerHTML = '';
+  td.appendChild(sel);
+  sel.focus();
+}
+
+function editVal(td) {
+  if (td.querySelector('input')) return;
+  const current = td.dataset.value || '';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.className = 'stat-val-input';
+  inp.value = current;
+  inp.onblur = () => {
+    td.dataset.value = inp.value;
+    td.textContent = inp.value || '—';
+  };
+  inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
+  td.innerHTML = '';
+  td.appendChild(inp);
+  inp.focus(); inp.select();
+}
+
+function getTableText(bodyId) {
+  const rows = document.querySelectorAll(`#${bodyId} tr`);
+  let text = '';
+  rows.forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    const statName = cells[0].dataset.value || cells[0].textContent.replace(/\s+/g,' ').trim();
+    const val = cells[1].dataset.value || cells[1].textContent.trim();
+    if (!statName || statName === '미감지') {
+      text += '\n';
+    } else {
+      text += `${statName}\t${val}\n`;
+    }
+  });
+  return text.trimEnd();
+}
+
+function copyTable(bodyId, feedbackId) {
+  const text = getTableText(bodyId);
+  navigator.clipboard.writeText(text).then(() => {
+    const fb = document.getElementById(feedbackId);
+    if (fb) { fb.classList.add('show'); setTimeout(() => fb.classList.remove('show'), 2000); }
+  });
+}
+
+function copyAll() {
+  const allBodies = document.querySelectorAll('[id^="sb-"]');
+  const parts = [];
+  allBodies.forEach(tb => {
+    parts.push(getTableText(tb.id));
+  });
+  navigator.clipboard.writeText(parts.join('\n\n')).then(() => {
+    const fb = document.getElementById('globalCopyFeedback');
+    if (fb) { fb.classList.add('show'); setTimeout(() => fb.classList.remove('show'), 2000); }
+  });
+}
+
+function toggleDebug(preId, imgWrapId, mode) {
+  const pre = document.getElementById(preId);
+  const wrap = document.getElementById(imgWrapId);
+  if (!pre || !wrap) return;
+  if (mode === 'text') {
+    const next = pre.style.display === 'block' ? 'none' : 'block';
+    pre.style.display = next;
+    wrap.style.display = 'none';
+  } else {
+    const next = wrap.style.display === 'block' ? 'none' : 'block';
+    wrap.style.display = next;
+    pre.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  파일 핸들링
+// ═══════════════════════════════════════════
+let loadedImgEls = [];  // HTMLImageElement[]
+let loadedDataURLs = []; // base64 previews
+const MAX_FILES = 5;
+let parsed_cache = []; // store parsed results per index for debug display
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag-over'); }
+function handleDragLeave() { document.getElementById('uploadZone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')).slice(0, MAX_FILES);
+  if (files.length > 0) loadImages(files);
+}
+function handleFileSelect(e) {
+  const files = Array.from(e.target.files).slice(0, MAX_FILES);
+  if (files.length > 0) loadImages(files);
+}
+
+function loadImages(files) {
+  loadedImgEls = new Array(files.length).fill(null);
+  loadedDataURLs = new Array(files.length).fill(null);
+  let loadedCount = 0;
+
+  const strip = document.getElementById('thumbStrip');
+  strip.innerHTML = '';
+
+  files.forEach((file, i) => {
+    // create thumb placeholder
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb-item';
+    thumb.id = `thumb-${i}`;
+    thumb.innerHTML = `<span class="thumb-badge">${i+1}</span>`;
+    strip.appendChild(thumb);
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataURL = ev.target.result;
+      loadedDataURLs[i] = dataURL;
+      const img = new Image();
+      img.onload = () => {
+        loadedImgEls[i] = img;
+        loadedCount++;
+
+        // update thumb
+        const t = document.getElementById(`thumb-${i}`);
+        if (t) t.innerHTML = `<img src="${dataURL}" alt="에코 ${i+1}"><span class="thumb-badge">${i+1}</span>`;
+
+        if (loadedCount === files.length) {
+          document.getElementById('previewWrap').style.display = 'block';
+          document.getElementById('analyzeBtn').textContent = `분석 시작 (${files.length}개)`;
+          document.getElementById('fileCountHint').textContent = `${files.length}개의 스크린샷이 선택되었습니다`;
+          document.getElementById('resultsCard').style.display = 'none';
+        }
+      };
+      img.src = dataURL;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function resetAll() {
+  loadedImgEls = [];
+  loadedDataURLs = [];
+  parsed_cache = [];
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('resultsCard').style.display = 'none';
+  document.getElementById('progressCard').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('thumbStrip').innerHTML = '';
+  document.getElementById('resultCardsContainer').innerHTML = '';
+  document.getElementById('globalCopyBar').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════
+//  분석 메인
+// ═══════════════════════════════════════════
+async function startAnalysis() {
+  const imgs = loadedImgEls.filter(Boolean);
+  if (imgs.length === 0) return;
+
+  document.getElementById('progressCard').style.display = 'block';
+  document.getElementById('resultsCard').style.display = 'none';
+  document.getElementById('resultCardsContainer').innerHTML = '';
+  parsed_cache = [];
+
+  setProgress(0, 'OCR 엔진 로딩 중... (첫 실행 시 언어팩 ~5MB 다운로드)');
+
+  try {
+    const worker = await Tesseract.createWorker({
+      logger: m => {
+        if (m.status === 'loading language traineddata') setProgress(3, '한국어 데이터 로딩 중...');
+        else if (m.status === 'initializing tesseract') setProgress(8, '엔진 초기화 중...');
+        else if (m.status === 'initialized tesseract') setProgress(12, '인식 준비 완료');
+      }
+    });
+    await worker.loadLanguage('kor+eng');
+    await worker.initialize('kor+eng');
+    await worker.setParameters({ tessedit_pageseg_mode: '6' });
+
+    const total = imgs.length;
+    const perImgProgress = Math.floor(85 / total);
+
+    for (let i = 0; i < total; i++) {
+      const imgEl = loadedImgEls[i];
+      const baseProgress = 15 + i * perImgProgress;
+
+      setProgress(baseProgress, `에코 ${i+1}/${total} 인식 중...`);
+
+      const ocrCanvas = prepareOCRCanvas(imgEl);
+      const thumbDataURL = ocrCanvas.toDataURL('image/jpeg', 0.7);
+
+      // update thumb status
+      const thumbEl = document.getElementById(`thumb-${i}`);
+      if (thumbEl) {
+        const badge = thumbEl.querySelector('.thumb-badge');
+        if (badge) {
+          const statusSpan = document.createElement('span');
+          statusSpan.className = 'thumb-status processing';
+          statusSpan.textContent = '처리중';
+          thumbEl.appendChild(statusSpan);
+        }
+      }
+
+      const innerLogger = m => {
+        if (m.status === 'recognizing text') {
+          setProgress(baseProgress + Math.round(m.progress * perImgProgress * 0.9), `에코 ${i+1}/${total} 인식 중... ${Math.round(m.progress*100)}%`);
+        }
+      };
+      worker.setParameters({}); // flush logger — use default
+      // Note: logger is set once at creation; we track progress approximately
+
+      const { data: { text } } = await worker.recognize(ocrCanvas);
+
+      const parsed = parseOCR(text);
+      parsed_cache.push(parsed);
+      const { subStats } = classifyStats(parsed);
+
+      // get original thumbnail for card header
+      const origThumbURL = loadedDataURLs[i] || thumbDataURL;
+
+      renderResultCard(i, total, subStats, origThumbURL, text);
+
+      // set debug image
+      const debugImg = document.getElementById(`di-${i}`);
+      if (debugImg) debugImg.src = thumbDataURL;
+
+      // update thumb status to done
+      if (thumbEl) {
+        const statusSpan = thumbEl.querySelector('.thumb-status');
+        if (statusSpan) { statusSpan.textContent = '완료'; statusSpan.className = 'thumb-status'; }
+        else {
+          const s = document.createElement('span');
+          s.className = 'thumb-status'; s.textContent = '완료';
+          thumbEl.appendChild(s);
+        }
+      }
+    }
+
+    await worker.terminate();
+    setProgress(100, '완료');
+
+    // show results
+    setTimeout(() => {
+      document.getElementById('progressCard').style.display = 'none';
+      document.getElementById('resultsCard').style.display = 'block';
+      document.getElementById('resultsCardLabel').textContent =
+        total > 1 ? `부옵션 추출 결과 (${total}개)` : '부옵션 추출 결과';
+      document.getElementById('globalCopyBar').style.display = total > 1 ? 'flex' : 'none';
+    }, 400);
+
+  } catch (err) {
+    setProgress(0, '오류: ' + err.message);
+    console.error(err);
+  }
+}
+
+function setProgress(pct, msg) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = msg;
+}
+</script>
+</body>
+</html>
